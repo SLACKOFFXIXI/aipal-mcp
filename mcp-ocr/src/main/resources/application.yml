@@ -1,0 +1,12 @@
+# AIPal MCP OCR Server 配置
+server:
+  name: aipal-ocr
+  version: 0.1.0
+
+# 模型路径（可通过环境变量 SMARTJAVAAI_MODEL_PATH 覆盖）
+model:
+  base-path: ./models/
+  det-model-name: ch_PP-OCRv5_server_det
+  rec-model-name: ch_PP-OCRv5_server_rec
+  use-direction: true
+  max-image-size: 10485760

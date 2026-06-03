@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>cn.aipal.mcp</groupId>
+    <artifactId>aipal-mcp-suite</artifactId>
+    <version>0.1.0</version>
+    <packaging>pom</packaging>
+    <name>AIPal MCP Suite (Parent)</name>
+    <description>把 SmartJavaAI 86 个 AI 模型封装为 MCP Tools，让 Claude/Cursor 等AI助手能调用</description>
+
+    <modules>
+        <module>mcp-common</module>
+        <module>mcp-ocr</module>
+        <!-- 待实现模块（每个需独立 pom.xml + 源码）:
+        <module>mcp-face</module>
+        <module>mcp-detection</module>
+        <module>mcp-classification</module>
+        <module>mcp-pose</module>
+        <module>mcp-translation</module>
+        -->
+    </modules>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <mcp.version>0.10.0</mcp.version>
+        <slf4j.version>2.0.13</slf4j.version>
+        <logback.version>1.5.6</logback.version>
+        <jackson.version>2.17.2</jackson.version>
+        <lombok.version>1.18.34</lombok.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.modelcontextprotocol.sdk</groupId>
+                <artifactId>mcp</artifactId>
+                <version>${mcp.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>${logback.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>

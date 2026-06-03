@@ -1,0 +1,18 @@
+<configuration>
+    <!-- MCP 通过 stdio 通信，日志绝不能写 stdout！全部写文件 -->
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>${user.home}/.aipal-mcp/mcp-suite-server.log</file>
+        <append>true</append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="ai.djl" level="WARN"/>
+    <logger name="io.modelcontextprotocol" level="INFO"/>
+    <logger name="cn.smartjavaai" level="INFO"/>
+
+    <root level="INFO">
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>
