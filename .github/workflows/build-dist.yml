@@ -1,0 +1,234 @@
+name: Build Multi-Platform Distribution
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  # 第一阶段：在 Mac 上构建 jar
+  build-jar:
+    name: Build JAR (macOS-14)
+    runs-on: macos-14
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 20
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '20'
+
+      - name: Build mcp-ocr
+        run: cd mcp-ocr && mvn -B clean package -DskipTests -Dgpg.skip=true
+
+      - name: Upload JAR for other platforms
+        uses: actions/upload-artifact@v4
+        with:
+          name: aipal-mcp-ocr-jar
+          path: mcp-ocr/target/mcp-ocr.jar
+          retention-days: 1
+
+  # 第二阶段：3 平台打包分发
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: build-jar
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: macos-arm64
+          - os: windows-latest
+            platform: windows-x64
+          - os: ubuntu-latest
+            platform: linux-x64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 20
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '20'
+
+      - name: Download prebuilt JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: aipal-mcp-ocr-jar
+          path: dist/app
+
+      - name: Prepare distribution
+        shell: bash
+        run: |
+          # 创建自定义 JRE
+          jlink \
+            --add-modules ALL-MODULE-PATH \
+            --strip-debug \
+            --no-man-pages \
+            --no-header-files \
+            --output dist/runtime
+
+          mkdir -p dist/models
+          # 不打包模型 - 用户首次启动按需下载（避免 188MB zip）
+
+      - name: Create start scripts
+        shell: bash
+        run: |
+          # macOS / Linux
+          cat > dist/start.sh << 'EOF'
+          #!/bin/bash
+          DIR="$(cd "$(dirname "$0")" && pwd)"
+          RUNTIME="$DIR/runtime"
+          APP_JAR="$DIR/app/mcp-ocr.jar"
+          LOG_DIR="$DIR/logs"
+
+          JAVA_OPTS="-Xmx4g -Dfile.encoding=UTF-8"
+
+          echo "========================================"
+          echo "  AIPal MCP OCR Server"
+          echo "  启动中..."
+          echo "========================================"
+          echo ""
+          echo "  📁 模型目录: ./models/ (首次启动需联网下载 PaddleOCR 模型)"
+          echo "  📝 日志: $LOG_DIR/run.log"
+          echo "  🌐 (此为 stdio 服务，通过 stdin/stdout 与 AI 客户端通信)"
+          echo ""
+
+          mkdir -p "$LOG_DIR"
+          "$RUNTIME/bin/java" $JAVA_OPTS \
+              -Dloader.main=cn.aipal.mcp.ocr.OcrMcpServer \
+              -Dai.djl.default_engine=OnnxRuntime \
+              -cp "$APP_JAR" \
+              org.springframework.boot.loader.launch.PropertiesLauncher
+          EOF
+          chmod +x dist/start.sh
+
+          # Windows
+          cat > dist/start.bat << 'EOF'
+          @echo off
+          chcp 65001 >nul
+
+          set DIR=%~dp0
+          set RUNTIME="%DIR%runtime"
+          set APP_JAR="%DIR%app\mcp-ocr.jar"
+          set LOG_DIR="%DIR%logs"
+
+          set JAVA_OPTS=-Xmx4g -Dfile.encoding=UTF-8
+
+          echo ========================================
+          echo   AIPal MCP OCR Server
+          echo   启动中...
+          echo ========================================
+          echo.
+          echo   模型目录: .\models\ (首次启动需联网下载 PaddleOCR 模型)
+          echo   日志: %LOG_DIR%\run.log
+          echo   (此为 stdio 服务，通过 stdin/stdout 与 AI 客户端通信)
+          echo.
+
+          if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+          %RUNTIME%\bin\java.exe %JAVA_OPTS% ^
+              -Dloader.main=cn.aipal.mcp.ocr.OcrMcpServer ^
+              -Dai.djl.default_engine=OnnxRuntime ^
+              -cp "%APP_JAR%" ^
+              org.springframework.boot.loader.launch.PropertiesLauncher
+
+          pause
+          EOF
+
+      - name: Create README
+        shell: bash
+        run: |
+          cat > dist/README.txt << 'EOF'
+          ═══════════════════════════════════════════════════════
+            AIPal MCP OCR Server  v0.1.0
+            平台: ${{ matrix.platform }}
+            https://github.com/SLACKOFFXIXI/aipal-mcp
+          ═══════════════════════════════════════════════════════
+
+          🚀 启动方法：
+            Windows:   双击 start.bat
+            Mac/Linux: 双击 start.sh，或在终端执行 ./start.sh
+
+          📋 系统要求：
+            - ${{ matrix.os == 'windows-latest' && 'Windows 10/11 64位' || (matrix.os == 'macos-14' && 'macOS 12+ Apple Silicon (M1/M2/M3)' || 'Linux x86_64') }}
+            - 无需预装 Java（JRE 已内置）
+            - 至少 4GB 内存
+            - 首次启动需联网（DJL 下载 native libs + PaddleOCR 模型 ~300MB）
+
+          💡 这是 MCP Server（stdio 服务）
+            需要配合 Claude Desktop / Cursor / Cherry Studio 等 AI 客户端使用
+            配置方法见 GitHub README: https://github.com/SLACKOFFXIXI/aipal-mcp
+
+          ❓ 故障排查：
+            1. 端口不需要（这是 stdio 服务，不监听端口）
+            2. 首次启动慢 - 正在下载 DJL + PaddleOCR 模型
+            3. 失败看 logs/run.log
+          EOF
+
+      - name: Clean up
+        shell: bash
+        run: |
+          rm -rf dist/logs
+
+      - name: Package as zip
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            powershell -Command "Compress-Archive -Path 'dist/*' -DestinationPath 'aipal-mcp-ocr-${{ matrix.platform }}.zip' -Force"
+          else
+            cd dist
+            zip -qr ../aipal-mcp-ocr-${{ matrix.platform }}.zip .
+            cd ..
+          fi
+          ls -lh *.zip
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aipal-mcp-ocr-${{ matrix.platform }}
+          path: aipal-mcp-ocr-*.zip
+          retention-days: 30
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/*.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          body: |
+            ## 🤖 AIPal MCP OCR Server v${{ github.ref_name }}
+
+            把 86 个 AI 模型封装为 MCP Tools。这是首个发布 - 包含 mcp-ocr 模块 4 个 OCR Tools。
+
+            ### ✨ 包含的工具：
+            - **ocr_extract_text** - 通用文字提取
+            - **ocr_extract_with_positions** - 文字+位置
+            - **ocr_detect_id_card** - 身份证识别
+            - **ocr_detect_plate** - 车牌识别
+
+            ### 📦 下载说明：
+            - 这是 stdio 服务（不是 Web 服务），需配合 Claude Desktop 等 AI 客户端使用
+            - 首次启动需联网（DJL + PaddleOCR 模型下载）
+            - 内置 JRE，无需装 Java
+
+            完整使用说明：https://github.com/SLACKOFFXIXI/aipal-mcp/blob/main/README.md
