@@ -85,6 +85,7 @@ jobs:
           retention-days: 7
 
       - name: Copy jar to dist
+        shell: bash
         run: |
           mkdir -p dist/app
           cp mcp-ocr/target/mcp-ocr.jar dist/app/
