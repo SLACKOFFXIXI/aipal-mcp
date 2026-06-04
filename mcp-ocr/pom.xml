@@ -27,6 +27,18 @@
             <version>0.34.0</version>
         </dependency>
 
+        <!--
+          Spring Boot Loader 让 mcp-ocr.jar 能用 PropertiesLauncher 自启动。
+          CI workflow 的 start.sh / start.bat 用
+          `org.springframework.boot.loader.launch.PropertiesLauncher` 启动 jar，
+          shade 插件会自动把 spring-boot-loader 的类烘进 fat jar。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-loader</artifactId>
+            <version>3.3.5</version>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
