@@ -70,9 +70,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Build mcp-ocr locally
-        run: mvn -B -e -X -f mcp-ocr/pom.xml clean package -DskipTests -Dgpg.skip=true
-        working-directory: mcp-ocr
+      - name: Build mcp-common and mcp-ocr
+        run: |
+          set -o pipefail
+          mvn -B -e -X -pl mcp-common,mcp-ocr -am clean package -DskipTests -Dgpg.skip=true 2>&1 | tee mvn-build-${{ matrix.platform }}.log
+          echo "EXIT=${PIPESTATUS[0]}" > mvn-exit-${{ matrix.platform }}.txt
+
+      - name: Upload mvn build log (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mvn-build-log-${{ matrix.platform }}
+          path: mvn-build-${{ matrix.platform }}.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Copy jar to dist
         run: |
