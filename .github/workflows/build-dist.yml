@@ -71,12 +71,14 @@ jobs:
           java-version: '17'
 
       - name: Build mcp-ocr locally
-        shell: bash
+        run: mvn -B -e -X -f mcp-ocr/pom.xml clean package -DskipTests -Dgpg.skip=true
+        working-directory: mcp-ocr
+
+      - name: Copy jar to dist
         run: |
-          cd mcp-ocr
-          mvn -B -e clean package -DskipTests -Dgpg.skip=true
-          mkdir -p ../dist/app
-          cp target/mcp-ocr.jar ../dist/app/
+          mkdir -p dist/app
+          cp mcp-ocr/target/mcp-ocr.jar dist/app/
+          ls -lh dist/app/
 
       - name: Prepare distribution
         shell: bash
