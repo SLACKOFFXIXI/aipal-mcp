@@ -71,10 +71,9 @@ jobs:
           java-version: '17'
 
       - name: Build mcp-common and mcp-ocr
+        shell: bash
         run: |
-          set -o pipefail
           mvn -B -e -X -pl mcp-common,mcp-ocr -am clean package -DskipTests -Dgpg.skip=true 2>&1 | tee mvn-build-${{ matrix.platform }}.log
-          echo "EXIT=${PIPESTATUS[0]}" > mvn-exit-${{ matrix.platform }}.txt
 
       - name: Upload mvn build log (always)
         if: always()
