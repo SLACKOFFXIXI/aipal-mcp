@@ -22,7 +22,20 @@ jobs:
           java-version: '20'
 
       - name: Build mcp-ocr
-        run: cd mcp-ocr && mvn -B clean package -DskipTests -Dgpg.skip=true
+        run: |
+          cd mcp-ocr
+          mvn -B -e -X clean package -DskipTests -Dgpg.skip=true 2>&1 | tee mvn-build.log
+          echo "EXIT_CODE=${PIPESTATUS[0]}" > mvn-exit.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Upload mvn build log (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mvn-build-log
+          path: mcp-ocr/mvn-build.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload JAR for other platforms
         uses: actions/upload-artifact@v4
