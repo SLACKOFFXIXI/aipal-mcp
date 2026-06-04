@@ -70,11 +70,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Download prebuilt JAR
-        uses: actions/download-artifact@v4
-        with:
-          name: aipal-mcp-ocr-jar
-          path: dist/app
+      - name: Build mcp-ocr locally
+        shell: bash
+        run: |
+          cd mcp-ocr
+          mvn -B -e clean package -DskipTests -Dgpg.skip=true
+          mkdir -p ../dist/app
+          cp target/mcp-ocr.jar ../dist/app/
 
       - name: Prepare distribution
         shell: bash
